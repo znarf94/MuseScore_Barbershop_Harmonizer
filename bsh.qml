@@ -5,8 +5,8 @@ import QtQuick.Layouts 1.3
 import MuseScore 3.0
 
 MuseScore {
-    menuPath: "Plugins.BSH"
-    description: "BarberShop Harmonizer"
+    menuPath: "Plugins.Barbershop Harmonizer"
+    description: "Plugin to help harmonizing a melody in Barbershop style"
     version: "1.0"
     pluginType: "dock"
     dockArea:   "right"
@@ -15,24 +15,40 @@ MuseScore {
     visible: true
 
     onRun: {
-        console.log("panel created");
-        next_note();
+        console.log("===== Barbershop Harmonizer =====");
+
+        main_cursor = curScore.newCursor();
+        main_cursor.track = 1;
+        main_cursor.rewind(Cursor.SCORE_START);
+
+        selection_changed();
+
 //      dbg(this);
-//        visible = false;
-//        for (var p in this) {
-//            console.log(p, this[p]);
-//        }
     }
 
-//  onScoreStateChanged: function (state) {
-//      if (state.selectionChanged) {
-//          var el = curScore ? curScore.selection.elements[0] : null;
-//          if (el && el.type == Element.NOTE)
-//              console.log('note selected :', el.pitch);
-//          else
-//              console.log('no note selected');
-//      }
-//  }
+    onScoreStateChanged: function (state) {
+        if (parent === null) {
+            // Plugin creator bug : signal still connected even after stopping the plugin
+            return;
+        }
+
+        //console.log("~~~~~ onScoreStateChanged ~~~~~");
+        if (inCmd) // prevent recursion from own changes
+            return;
+        if (state.undoRedo) // try not to interfere with undo/redo commands
+            return;
+
+//      console.log("selectionChanged   : ", state.selectionChanged   );
+//      console.log("excerptsChanged    : ", state.excerptsChanged    );
+//      console.log("instrumentsChanged : ", state.instrumentsChanged );
+//      console.log("startLayoutTick    : ", state.startLayoutTick    );
+//      console.log("endLayoutTick      : ", state.endLayoutTick      );
+
+        if (state.selectionChanged) {
+            selection_changed();
+        }
+    }
+
 
     //    TODO: essayer d'intercepter la fermeture du panneau
 //    onWidthChanged: {
@@ -40,6 +56,7 @@ MuseScore {
 //        Qt.quit();
 //    }
 
+    property bool inCmd: false
     property var main_cursor: undefined
     property int current_keysig: 0
     property int tonality: tona_from_ks[current_keysig + 7]
@@ -47,7 +64,7 @@ MuseScore {
     property int root: tonality + root_gv.model.get(root_gv.currentIndex).offset
     property var chord: chord_gv.model.get(chord_gv.currentIndex)
     property int lead_note: 60
-    property var cursor_text: undefined
+    property bool interaction_enabled: false
 
 
     ColumnLayout {
@@ -95,6 +112,7 @@ MuseScore {
                 border.color: "lightgray"
                 border.width: 1
                 radius: 4
+                enabled: interaction_enabled
 
                 Text {
                     anchors.centerIn: parent
@@ -105,6 +123,7 @@ MuseScore {
                         else
                             get_note_name(tonality + offset)
                     }
+                    color: enabled ? "black" : "lightgray"
                 }
                 MouseArea {
                     anchors.fill: parent
@@ -138,6 +157,7 @@ MuseScore {
                 border.color: "lightgray"
                 border.width: 1
                 radius: 4
+                enabled: interaction_enabled
 
                 Text {
                     anchors.centerIn: parent
@@ -145,7 +165,7 @@ MuseScore {
 
                     color: (Object.keys(offsets).some(function (k) {
                         return (offsets[k] + root) % 12 === lead_note % 12;
-                    })) ? "black" : "lightgray"
+                    })) && enabled ? "black" : "lightgray"
                 }
 
                 MouseArea {
@@ -220,6 +240,7 @@ MuseScore {
 
                 enabled: (typeof chord !== 'undefined')
                          && ((root + chord.offsets[voicing_gv.model.get(index).notes[2]]) % 12 == lead_note % 12)
+                         && interaction_enabled
 
                 Text {
                     anchors.centerIn: parent
@@ -287,99 +308,30 @@ MuseScore {
          // }
         }
 
-        GridLayout {
+        Button {
             Layout.fillWidth: true
-            columns: 2
+            iconName: "system-help"
+            text: "Help"
+            onClicked: {
+                popup.title = 'Help';
+                popup.text = "
+                <h3>BarberShop Harmonizer</h3>
 
-            Button {
-                Layout.fillWidth: true
-                text: "← Previous"
-                onClicked: next_note(true)
+                <p>
+                Tonality is determined automatically from the key signature.
+                </p>
+
+                <p>
+                Select the lead note you want to harmonize (it must be on voice #2 of staff #1).<br/>
+                Select the root of the chord, then select the chord type.<br/>
+                Click on the desired voicing to apply the change to the accompanying notes (Tenor, Baritone, and Bass).<br/>
+                Right-click on the desired voicing to have a lower Baritone/bass pair (ie. to ensure that the Baritone is below the Lead).
+                </p>
+                ";
+                popup.visible = true;
             }
-
-            Button {
-                Layout.fillWidth: true
-                text: "Next →"
-                onClicked: next_note()
-            }
-
-            Button {
-                Layout.fillWidth: true
-                iconName: "system-shutdown"
-                text: "Close"
-                onClicked: {
-                    curScore.startCmd();
-
-                    // restore color and remove text
-                    var e = main_cursor.element;
-
-                    if (e && (e.type == Element.CHORD)) {
-                        e.notes[0].color = "#000000";
-                    }
-
-                    removeElement(cursor_text);
-
-                    curScore.endCmd();
-
-                    Qt.quit();
-                }
-            }
-
-            Button {
-                Layout.fillWidth: true
-                iconName: "system-help"
-                text: "Help"
-                onClicked: {
-                    popup.title = 'Help';
-                    popup.text = "
-                    <h3>BarberShop Harmonizer</h3>
-
-                    <p>
-                    Tonality is determined automatically from the key signature.
-                    </p>
-
-                    <p>
-                    Select the root of the chord, then select the chord type.<br/>
-                    Click on the desired voicing to apply the change to the accompanying notes (Tenor, Baritone, and Bass).<br/>
-                    Right-click on the desired voicing to have a lower Baritone/bass pair.
-                    </p>
-                    <p>
-                    Please click on the 'Close' button to exit the plugin (do not just close the panel)
-                    </p>
-                    ";
-                    popup.visible = true;
-                }
-            }
-
-         // Button {
-         //     text: "Selection"
-         //     onClicked: {
-         //         var cursor = curScore.newCursor();
-         //         cursor.track = 1;
-         //         cursor.rewind(Cursor.SELECTION_START);
-         //
-         //         console.log('cursor tick :', cursor.tick);
-         //
-         //
-         //         console.log(curScore.selection.elements.length, 'elements selected');
-         //
-         //         var elems = curScore.selection.elements;
-         //         for (var i in elems) {
-         //             var el = elems[i];
-         //             console.log(i, elems[i]);
-         //
-         //             if (el.type == Element.NOTE) {
-         //                 dbg(el);                  // Note
-         //                 dbg(el.parent);           // Chord
-         //                 dbg(el.parent.parent);    // Segment
-         //                 console.log('note :', el.pitch, 'at', el.parent.parent.tick);
-         //                 dbg(el.parent.parent.elementAt(1));
-         //             }
-         //         }
-         //     }
-         // }
         }
-    }
+    } // ColumnLayout
 
     // ============= Information Popup =============
     Rectangle {
@@ -638,6 +590,22 @@ MuseScore {
         9: 'ninth',
     }
 
+    // ===================== Functions =====================
+
+    function ensureCmdStarted() {
+        if (!inCmd) {
+            curScore.startCmd();
+            inCmd = true;
+        }
+    }
+
+    function ensureCmdEnded() {
+        if (inCmd) {
+            curScore.endCmd();
+            inCmd = false;
+        }
+    }
+
     function get_note_name(pitch) {
         return note_names[pitch % 12]
     }
@@ -646,77 +614,27 @@ MuseScore {
         return note_tpc[pitch % 12]
     }
 
-    function next_note(reverse) {
-        var eof;
+    function selection_changed() {
+        interaction_enabled = false;
+        console.log(curScore.selection.elements.length, "element(s) selected");
 
-        reverse = !!reverse;
+        if (curScore.selection.elements.length == 1) {
+            var el = curScore.selection.elements[0];
 
-        curScore.startCmd();
+            if ((el.type == Element.NOTE) && (el.track == 1)) {
+//              console.log("It's a note !", get_note_name(el.pitch));
+//              console.log("> Element : ", el);
+//              console.log("> Parent : ", el.parent);
+//              console.log("> Grand-parent : ", el.parent.parent);
+//              console.log("> Tick : ", el.parent.parent.tick);
+//              console.log("note track :", el.track);
 
-        if (typeof main_cursor === 'undefined') {
-            main_cursor = curScore.newCursor();
-            main_cursor.track = 1;
-            main_cursor.rewind(Cursor.SCORE_START);
-
-            eof = false;
-            while (!eof && main_cursor.element && (main_cursor.element.type != Element.CHORD)) {
-                eof = !main_cursor.next();
-            }
-
-            if (eof || !main_cursor.element) {
-                console.log('rien trouvé sur la voix 1');
-                Qt.quit();
-                return;
-            }
-        } else {
-            var e = main_cursor.element;
-            if (e && (e.type == Element.CHORD)) {
-                // Restore color and remove text
-                e.notes[0].color = "#000000";
-                if (typeof cursor_text !== 'undefined') {
-                    removeElement(cursor_text);
-                }
-            }
-
-            eof = false;
-            do {
-                eof = reverse ? !main_cursor.prev() : !main_cursor.next();
-            } while (!eof && (main_cursor.element.type != Element.CHORD));
-
-            if (eof) {
-                main_cursor.rewind(Cursor.SCORE_START);
-
-                while (main_cursor.element && (main_cursor.element.type != Element.CHORD)) {
-                    main_cursor.next();
-                }
+                interaction_enabled = true;
+                lead_note = el.pitch;
+                main_cursor.rewindToTick(el.parent.parent.tick);
+                current_keysig = main_cursor.keySignature;
             }
         }
-
-        var e = main_cursor.element;
-
-        if (e && (e.type == Element.CHORD)) {
-            var note = e.notes[0];
-//          console.log(note, note.pitch);
-
-            if (note.tieBack != null) {
-                return next_note(reverse);
-            }
-
-            // Apply color and text
-            note.color = "#ff00ff";
-            lead_note = note.pitch;
-            current_keysig = main_cursor.keySignature;
-
-//          console.log('add text');
-            cursor_text = newElement(Element.STAFF_TEXT);
-            cursor_text.text = get_note_name(lead_note);
-            cursor_text.color = "#ff00ff";
-            main_cursor.add(cursor_text);
-        } else {
-            console.log('No element found');
-        }
-
-        curScore.endCmd();
     }
 
     function voicing_selected(index, spread) {
@@ -731,8 +649,6 @@ MuseScore {
 //        voicing.notes.split('').forEach(function(note){
 //            console.log('note', note, get_note_name(root + chord.offsets[note]));
 //        });
-
-        console.log('---');
 
         var tenor_note = root + chord.offsets[voicing.notes[3]];
         while (tenor_note <= lead_note) { tenor_note += 12; }
@@ -752,7 +668,7 @@ MuseScore {
         console.log('Bass  : ', bass_note, get_note_name(bass_note));
 
         // ============ Score operation ===============
-        curScore.startCmd();
+        ensureCmdStarted();
 
         console.log('currently at tick', main_cursor.tick);
 
@@ -781,7 +697,7 @@ MuseScore {
      //     harmony.text = '';
      // }
 
-        curScore.endCmd();
+        ensureCmdEnded();
     }
 
     function change_pitch(track, pitch) {
@@ -792,12 +708,12 @@ MuseScore {
         if (elem && (elem.type == Element.CHORD)) {
             var cur_note = elem.notes[0].firstTiedNote;
 
-            console.log('change :', cur_note.pitch, '->', pitch);
+            //console.log('change :', cur_note.pitch, '->', pitch);
             cur_note.pitch = pitch;
             cur_note.tpc = get_tpc(pitch);
 
             while (cur_note.tieForward != null) {
-                console.log('tied note !');
+                //console.log('tied note !');
                 cur_note = cur_note.tieForward.endNote;
                 cur_note.pitch = pitch;
                 cur_note.tpc = get_tpc(pitch);
@@ -824,23 +740,20 @@ MuseScore {
 
 
     // =========================================================================================================
-    function chord_changed() {
-        console.log("chord changed");
-    }
-
     function dbg(element) {
 //        console.log(Object.keys(element));
         console.log('==============================================');
+        console.log("typeof(element) :", typeof(element));
         for (var p in element) {
             if (typeof element[p] !== 'undefined') {
-                console.log(p, '\t', element[p]);
+                console.log(p, '\t', typeof(element[p]), '\t', element[p]);
             }
         }
         console.log('==============================================');
     }
 
     function add_notes() {
-        curScore.startCmd();
+        ensureCmdStarted();
 
         var cursor = curScore.newCursor();
         var notes = [];
@@ -889,7 +802,7 @@ MuseScore {
 //          }
 //          cursor.next();
 //      }
-//      curScore.endCmd();
+//      ensureCmdEnded();
 //      return;
 
         // ====== Lecture notes et silences =======
@@ -988,6 +901,6 @@ MuseScore {
         console.log(cursor.staffIdx, cursor.voice, cursor.track, cursor.tick);
         */
 
-        curScore.endCmd();
+        ensureCmdEnded();
     }
 }
