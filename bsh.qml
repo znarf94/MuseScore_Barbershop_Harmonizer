@@ -143,7 +143,6 @@ MuseScore {
         GridView {
             id: chord_gv
             Layout.minimumHeight: 2 * cellHeight
-            Layout.fillHeight: false
             Layout.fillWidth: true
             cellWidth: Math.floor(parent.width / 7)
             cellHeight: 30
@@ -185,8 +184,9 @@ MuseScore {
 
         GridView {
             id: voicing_gv
-            Layout.fillHeight: true
             Layout.fillWidth: true
+//          Layout.preferredHeight: cellHeight * Math.ceil(count / (Math.floor(parent.width / cellWidth)))
+            Layout.minimumHeight: cellHeight
             cellWidth: 25
             cellHeight: 70
 
@@ -268,69 +268,82 @@ MuseScore {
             }
         }
 
-        Text {
-            id: status_bar
-            Layout.fillHeight: false
-            Layout.fillWidth: true
-        }
+        RowLayout {
+            ColumnLayout {
+                Text {
+                    id: status_bar
+                    Layout.fillHeight: true
+                    verticalAlignment: Text.AlignBottom
+                }
 
-        Text {
-            Layout.fillHeight: false
-            Layout.fillWidth: true
-            font.pixelSize: 12
-         // color: ma.containsMouse ? "steelblue" : "black"
+                Text {
+                    font.pixelSize: 12
+                 // color: ma.containsMouse ? "steelblue" : "black"
 
-            text: {
-                var str = '';
+                    text: {
+                        var str = '';
 
-                if (typeof chord !== 'undefined') {
-                    str = get_note_name(root) + chord.notation + " (" + chord.name + ")"
-                            + '<br>Current note : <font color="#ff00ff">' + get_note_name(lead_note) + '</font>'
-                    var interval = (lead_note + 12 - root) % 12;
-                    if (interval > 0) {
-                        str += ' is a ' + interval_names[interval] + ' above ' + get_note_name(root)
-                    } else {
-                        str += ' is the root of the chord';
+                        if (typeof chord !== 'undefined') {
+                            str = get_note_name(root) + chord.notation + " (" + chord.name + ")"
+                                    + '<br>Current note : <font color="#ff00ff">' + get_note_name(lead_note) + '</font>'
+                            var interval = (lead_note + 12 - root) % 12;
+                            if (interval > 0) {
+                                str += ' is a ' + interval_names[interval] + ' above ' + get_note_name(root)
+                            } else {
+                                str += ' is the root of the chord';
+                            }
+                        }
+                        str
+                    }
+
+                 // MouseArea {
+                 //     id: ma
+                 //     anchors.fill: parent
+                 //     hoverEnabled: true
+                 //     onClicked: {
+                 //         popup.title = get_note_name(root) + chord.notation;
+                 //         popup.text = "Information about chord";
+                 //         popup.visible = true;
+                 //     }
+                 // }
+                }
+            } // ColumnLayout
+
+            ColumnLayout {
+                Rectangle {
+                    Layout.fillHeight: true
+                }
+
+                CheckBox {
+                    id: add_harmony_cb
+                    text: "Add chord symbols"
+                }
+
+                Button {
+                    Layout.fillWidth: true
+                    iconName: "help-about"
+                    text: "Help"
+                    onClicked: {
+                        popup.title = 'Help';
+                        popup.text = "
+                        <h3>BarberShop Harmonizer</h3>
+
+                        <p>
+                        Tonality is determined automatically from the key signature.
+                        </p>
+
+                        <p>
+                        Select the lead note you want to harmonize (it must be on voice #2 of staff #1).<br/>
+                        Select the root of the chord, then select the chord type.<br/>
+                        Click on the desired voicing to apply the change to the accompanying notes (Tenor, Baritone, and Bass).<br/>
+                        Right-click on the desired voicing to have a lower Baritone/bass pair (ie. to ensure that the Baritone is below the Lead).
+                        </p>
+                        ";
+                        popup.visible = true;
                     }
                 }
-                str
             }
-
-         // MouseArea {
-         //     id: ma
-         //     anchors.fill: parent
-         //     hoverEnabled: true
-         //     onClicked: {
-         //         popup.title = get_note_name(root) + chord.notation;
-         //         popup.text = "Information about chord";
-         //         popup.visible = true;
-         //     }
-         // }
-        }
-
-        Button {
-            Layout.fillWidth: true
-            iconName: "system-help"
-            text: "Help"
-            onClicked: {
-                popup.title = 'Help';
-                popup.text = "
-                <h3>BarberShop Harmonizer</h3>
-
-                <p>
-                Tonality is determined automatically from the key signature.
-                </p>
-
-                <p>
-                Select the lead note you want to harmonize (it must be on voice #2 of staff #1).<br/>
-                Select the root of the chord, then select the chord type.<br/>
-                Click on the desired voicing to apply the change to the accompanying notes (Tenor, Baritone, and Bass).<br/>
-                Right-click on the desired voicing to have a lower Baritone/bass pair (ie. to ensure that the Baritone is below the Lead).
-                </p>
-                ";
-                popup.visible = true;
-            }
-        }
+        } // RowLayout
     } // ColumnLayout
 
     // ============= Information Popup =============
@@ -686,7 +699,7 @@ MuseScore {
         if (harmony) {
             // if chord symbol exists, replace it
             harmony.text = chord_name;
-        } else {
+        } else if (add_harmony_cb.checked) {
             // chord symbol does not exist, create it
             harmony = newElement(Element.HARMONY);
             harmony.text = chord_name;
