@@ -85,7 +85,7 @@ MuseScore {
             id: root_gv
             Layout.minimumHeight: 2 * cellHeight
             Layout.fillWidth: true
-            cellWidth: parent.width / 7
+            cellWidth: Math.floor(parent.width / 7)
             cellHeight: 30
 
             model: ListModel {
@@ -145,7 +145,7 @@ MuseScore {
             Layout.minimumHeight: 2 * cellHeight
             Layout.fillHeight: false
             Layout.fillWidth: true
-            cellWidth: parent.width / 7
+            cellWidth: Math.floor(parent.width / 7)
             cellHeight: 30
 
             model: chords_model
