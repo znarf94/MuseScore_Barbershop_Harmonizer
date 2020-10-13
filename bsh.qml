@@ -723,13 +723,15 @@ MuseScore {
 
             //console.log('change :', cur_note.pitch, '->', pitch);
             cur_note.pitch = pitch;
-            cur_note.tpc = get_tpc(pitch);
+            cur_note.tpc1 = get_tpc(pitch);
+            cur_note.tpc2 = cur_note.tpc1;
 
             while (cur_note.tieForward != null) {
                 //console.log('tied note !');
                 cur_note = cur_note.tieForward.endNote;
                 cur_note.pitch = pitch;
-                cur_note.tpc = get_tpc(pitch);
+                cur_note.tpc1 = get_tpc(pitch);
+                cur_note.tpc2 = cur_note.tpc1;
             }
         }
 
