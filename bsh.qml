@@ -1,6 +1,6 @@
-import QtQuick 2.0
+import QtQuick 2.9
 import QtQuick.Controls 1.3
-import QtQuick.Layouts 1.3
+import QtQuick.Layouts 1.4
 //import QtQuick.Window 2.3
 import MuseScore 3.0
 
@@ -13,6 +13,18 @@ MuseScore {
     width: 370
     height: 500
     visible: true
+
+    //4.4 title: "Barbershop Harmonizer"
+    //4.4 categoryCode: "composing-arranging-tools"
+    //4.4 pluginType: "dialog"
+
+    Component.onCompleted : {
+        if (mscoreMajorVersion >= 4 && mscoreMinorVersion <= 3) {
+             title = "Barbershop Harmonizer";
+             categoryCode = "composing-arranging-tools";
+             pluginType = "dialog";
+        }
+    }
 
     onRun: {
         console.log("===== Barbershop Harmonizer =====");
@@ -53,7 +65,7 @@ MuseScore {
     //    TODO: essayer d'intercepter la fermeture du panneau
 //    onWidthChanged: {
 //        console.log("closed");
-//        Qt.quit();
+//        (typeof(quit) === 'undefined' ? Qt.quit : quit)()
 //    }
 
     property bool inCmd: false
